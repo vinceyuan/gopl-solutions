@@ -15,10 +15,22 @@ func process(arg string) {
 		fmt.Fprintf(os.Stderr, "cf: %v\n", err)
 		os.Exit(1)
 	}
-	f := tempconv.Fahrenheit(t)
-	c := tempconv.Celsius(t)
-	fmt.Printf("%s = %s, %s = %s\n",
-		f, tempconv.FToC(f), c, tempconv.CToF(c))
+	{
+		f := tempconv.Fahrenheit(t)
+		c := tempconv.Celsius(t)
+		fmt.Printf("%s = %s, %s = %s\n", f, tempconv.FToC(f), c, tempconv.CToF(c))
+	}
+	{
+		f := tempconv.Feet(t)
+		m := tempconv.Meter(t)
+		fmt.Printf("%s = %s, %s = %s\n", f, tempconv.FToM(f), m, tempconv.MToF(m))
+	}
+	{
+		p := tempconv.Pound(t)
+		k := tempconv.Kilogram(t)
+		fmt.Printf("%s = %s, %s = %s\n", p, tempconv.PToK(p), k, tempconv.KToP(k))
+	}
+
 }
 
 func main() {
