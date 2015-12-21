@@ -23,7 +23,7 @@ func main() {
 
 func printHash(hash [32]byte) {
 	for _, v := range hash {
-		fmt.Printf("%08b ", v)
+		fmt.Printf("%X", v)
 	}
 	fmt.Println()
 }
