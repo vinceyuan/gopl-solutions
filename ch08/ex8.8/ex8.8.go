@@ -17,32 +17,40 @@ func echo(c net.Conn, shout string, delay time.Duration) {
 	fmt.Fprintln(c, "\t", strings.ToLower(shout))
 }
 
+func countIdleTime(conn net.Conn, notIdleCh <-chan bool) {
+	ticker := time.NewTicker(time.Second)
+	counter := 0
+	max := 20 // 20 seconds
+	for {
+		select {
+		case <-ticker.C:
+			counter++
+			if counter == max {
+				msg := conn.RemoteAddr().String() + " idle too long. Kicked out."
+				fmt.Println(msg)
+				fmt.Fprintln(conn, msg) // Let to-be-closed client see this msg
+				ticker.Stop()
+				conn.Close()
+				return
+			}
+		case <-notIdleCh:
+			counter = 0
+		}
+	}
+}
+
 func handleConn(c net.Conn) {
-	counter := make(chan int, 1) // Used a buffered channel to avoid go routine leak
 
 	input := bufio.NewScanner(c)
-	go func() {
-		for input.Scan() {
-			counter <- 10 // Reset counter
-			go echo(c, input.Text(), 1*time.Second)
-		}
-		counter <- 0
-		fmt.Println("input.Scan() go routine ends")
-	}()
+	notIdleCh := make(chan bool)
+	go countIdleTime(c, notIdleCh)
 
-	for i := 10; i >= 0; {
-		fmt.Println(i)
-		select {
-		case value := <-counter:
-			i = value
-
-		default:
-			i--
-		}
-		time.Sleep(time.Second)
+	for input.Scan() {
+		notIdleCh <- true
+		go echo(c, input.Text(), 1*time.Second)
 	}
+
 	c.Close()
-	fmt.Println("Closed a connection")
 
 }
 
