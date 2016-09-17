@@ -34,7 +34,7 @@ func diffBits(hash1, hash2 [32]byte) int {
 		byte1 := hash1[i]
 		byte2 := hash2[i]
 		for j := 0; j < 8; j++ {
-			if byte1&pc[j] == byte2&pc[j] {
+			if byte1&pc[j] != byte2&pc[j] {
 				count++
 			}
 		}
