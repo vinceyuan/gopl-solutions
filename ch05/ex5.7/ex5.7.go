@@ -55,7 +55,7 @@ func startElement(n *html.Node) {
 	if n.Type == html.ElementNode {
 		fmt.Printf("%*s<%s", depth*2, "", n.Data)
 		for _, a := range n.Attr {
-			fmt.Printf(" %s=\"%s\"", a.Key, a.Val)
+			fmt.Printf(" %s=%q", a.Key, a.Val)
 		}
 		if n.FirstChild != nil {
 			fmt.Printf(">\n")
