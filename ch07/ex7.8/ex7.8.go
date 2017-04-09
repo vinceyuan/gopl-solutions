@@ -1,3 +1,8 @@
+// ex7.8: Many GUIs provide a table widget with a stateful multi-tier sort:
+// the primary sort key is he most recently clicked column head, the
+// secondary sort key is the scond most recently clicked column head, and
+// so on. Define an implementation of sort.Interface for use by such table.
+// Compare that approach with repeated sorting using sort.Stable
 package main
 
 import (
@@ -16,6 +21,15 @@ type Track struct {
 	Length time.Duration
 }
 
+type clickedSort struct {
+	tracks []*Track
+	less   func(track1, track2 *Track) bool
+}
+
+func (x clickedSort) Len() int           { return len(x.tracks) }
+func (x clickedSort) Less(i, j int) bool { return x.less(x.tracks[i], x.tracks[j]) }
+func (x clickedSort) Swap(i, j int)      { x.tracks[i], x.tracks[j] = x.tracks[j], x.tracks[i] }
+
 var tracks = []*Track{
 	{"Go", "Delilah", "From the Roots Up", 2012, length("3m38s")},
 	{"Go", "Moby", "Moby", 1992, length("3m37s")},
@@ -23,98 +37,86 @@ var tracks = []*Track{
 	{"Ready 2 Go", "Martin Solveig", "Smash", 2011, length("4m24s")},
 }
 
-func length(s string) time.Duration {
-	d, err := time.ParseDuration(s)
-	if err != nil {
-		panic(s)
-	}
-	return d
+func main() {
+	recentClicks := make([]string, 4) // Recent clicks. First one is the most recent and so on
+	recentClicks[0] = "Title"
+	recentClicks[1] = "Year"
+	recentClicks[2] = "Artist"
+
+	sort.Sort(clickedSort{tracks, func(track1, track2 *Track) bool {
+		if len(recentClicks) == 0 {
+			return track1.Title < track2.Title
+		}
+
+		for _, recentClick := range recentClicks {
+			switch recentClick {
+			case "Title":
+				if track1.Title != track2.Title {
+					return track1.Title < track2.Title
+				}
+			case "Year":
+				if track1.Year != track2.Year {
+					return track1.Year < track2.Year
+				}
+			case "Length":
+				if track1.Length != track2.Length {
+					return track1.Length < track2.Length
+				}
+			case "Artist":
+				if track1.Artist != track2.Artist {
+					return track1.Artist < track2.Artist
+				}
+			}
+		}
+		return false
+	}})
+	printTracks(tracks)
 }
 
 func printTracks(tracks []*Track) {
 	const format = "%v\t%v\t%v\t%v\t%v\t\n"
-	tw := new(tabwriter.Writer).Init(os.Stdout, 0, 8, 2, ' ', 0)
-	fmt.Fprintf(tw, format, "Title", "Artist", "Album", "Year", "Length")
-	fmt.Fprintf(tw, format, "-----", "------", "-----", "----", "------")
-	for _, t := range tracks {
-		fmt.Fprintf(tw, format, t.Title, t.Artist, t.Album, t.Year, t.Length)
+	tablewriter := new(tabwriter.Writer).Init(os.Stdout, 0, 8, 2, ' ', 0)
+	fmt.Fprintf(tablewriter, format, "Title", "Artist", "Album", "Year", "Length")
+	fmt.Fprintf(tablewriter, format, "-----", "-----", "-----", "-----", "-----")
+	for _, track := range tracks {
+		fmt.Fprintf(tablewriter, format, track.Title, track.Artist, track.Album, track.Year, track.Length)
 	}
-	tw.Flush() // calculate column widths and print table
+	tablewriter.Flush()
 }
 
-type byArtist []*Track
-
-func (x byArtist) Len() int           { return len(x) }
-func (x byArtist) Less(i, j int) bool { return x[i].Artist < x[j].Artist }
-func (x byArtist) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-
-type byYear []*Track
-
-func (x byYear) Len() int           { return len(x) }
-func (x byYear) Less(i, j int) bool { return x[i].Year < x[j].Year }
-func (x byYear) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-
-type byTitleAndArtist []*Track
-
-func (x byTitleAndArtist) Len() int { return len(x) }
-func (x byTitleAndArtist) Less(i, j int) bool {
-	if x[i].Title == x[j].Title {
-		return x[i].Artist < x[j].Artist
-	} else {
-		return x[i].Title < x[j].Title
+func length(stringDuration string) time.Duration {
+	duration, err := time.ParseDuration(stringDuration) // e.g. "4m32s"
+	if err != nil {
+		panic(stringDuration)
 	}
-}
-func (x byTitleAndArtist) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-
-func main() {
-	fmt.Println("\nbyTitleAndArtist:")
-	sort.Sort(byTitleAndArtist(tracks))
-	printTracks(tracks)
+	return duration
 }
 
 /*
-//!+artistoutput
-Title       Artist          Album              Year  Length
------       ------          -----              ----  ------
-Go Ahead    Alicia Keys     As I Am            2007  4m36s
-Go          Delilah         From the Roots Up  2012  3m38s
-Ready 2 Go  Martin Solveig  Smash              2011  4m24s
-Go          Moby            Moby               1992  3m37s
-//!-artistoutput
+// recentClicks = ["Title", "Artist", "Year"]
 
-//!+artistrevoutput
-Title       Artist          Album              Year  Length
------       ------          -----              ----  ------
-Go          Moby            Moby               1992  3m37s
-Ready 2 Go  Martin Solveig  Smash              2011  4m24s
-Go          Delilah         From the Roots Up  2012  3m38s
-Go Ahead    Alicia Keys     As I Am            2007  4m36s
-//!-artistrevoutput
+Title       Artist          Album              Year   Length
+-----       -----           -----              -----  -----
+Go          Delilah         From the Roots Up  2012   3m38s
+Go          Moby            Moby               1992   3m37s
+Go Ahead    Alicia Keys     As I Am            2007   4m36s
+Ready 2 Go  Martin Solveig  Smash              2011   4m24s
 
-//!+yearoutput
-Title       Artist          Album              Year  Length
------       ------          -----              ----  ------
-Go          Moby            Moby               1992  3m37s
-Go Ahead    Alicia Keys     As I Am            2007  4m36s
-Ready 2 Go  Martin Solveig  Smash              2011  4m24s
-Go          Delilah         From the Roots Up  2012  3m38s
-//!-yearoutput
+// recentClicks = []
 
-//!+customout
-Title       Artist          Album              Year  Length
------       ------          -----              ----  ------
-Go          Moby            Moby               1992  3m37s
-Go          Delilah         From the Roots Up  2012  3m38s
-Go Ahead    Alicia Keys     As I Am            2007  4m36s
-Ready 2 Go  Martin Solveig  Smash              2011  4m24s
-//!-customout
+Title       Artist          Album              Year   Length
+-----       -----           -----              -----  -----
+Go          Delilah         From the Roots Up  2012   3m38s
+Go          Moby            Moby               1992   3m37s
+Go Ahead    Alicia Keys     As I Am            2007   4m36s
+Ready 2 Go  Martin Solveig  Smash              2011   4m24s
+
+// recentClicks = ["Title", "Year", "Artist"]
+
+Title       Artist          Album              Year   Length
+-----       -----           -----              -----  -----
+Go          Moby            Moby               1992   3m37s
+Go          Delilah         From the Roots Up  2012   3m38s
+Go Ahead    Alicia Keys     As I Am            2007   4m36s
+Ready 2 Go  Martin Solveig  Smash              2011   4m24s
 */
-
-type customSort struct {
-	t    []*Track
-	less func(x, y *Track) bool
-}
-
-func (x customSort) Len() int           { return len(x.t) }
-func (x customSort) Less(i, j int) bool { return x.less(x.t[i], x.t[j]) }
-func (x customSort) Swap(i, j int)      { x.t[i], x.t[j] = x.t[j], x.t[i] }
