@@ -8,73 +8,65 @@ import (
 	"net"
 )
 
-type client chan<- string // an outgoing message channel
+type client struct {
+	channel chan<- string // an outgoing message channel
+	name    string
+}
 
 var (
-	entering             = make(chan client)
-	leaving              = make(chan client)
-	messages             = make(chan string) // all incoming client messages
-	registeringAddress   = make(chan string)
-	unregisteringAddress = make(chan string)
+	entering = make(chan *client)
+	leaving  = make(chan *client)
+	messages = make(chan string) // all incoming client messages
 )
 
 func broadcaster() {
-	clients := make(map[client]bool) // all connected clients
-	addresses := make(map[string]bool)
+	clients := make(map[string]*client) // all connected clients
 	for {
 		select {
 		case msg := <-messages:
 			// Broadcast incoming message to all
 			// clients' outgoing message channels.
-			for cli := range clients {
-				cli <- msg
+			for _, cli := range clients {
+				cli.channel <- msg
 			}
 
 		case cli := <-entering:
-			clients[cli] = true
+			go giveAllClients(cli.channel, clients)
+			clients[cli.name] = cli
 
 		case cli := <-leaving:
-			delete(clients, cli)
-			close(cli)
-
-		case address := <-registeringAddress:
-			addresses[address] = true
-			allClients := "All clients:"
-			for addr := range addresses {
-				allClients = fmt.Sprintf("%s\n%s", allClients, addr)
-			}
-			go func() { messages <- allClients }() // Must call a new goroutine to avoid blocking
-		case address := <-unregisteringAddress:
-			delete(addresses, address)
-			allClients := "All clients:"
-			for addr := range addresses {
-				allClients = fmt.Sprintf("%s\n%s", allClients, addr)
-			}
-			go func() { messages <- allClients }() // Must call a new goroutine to avoid blocking
+			delete(clients, cli.name)
+			close(cli.channel)
 		}
+	}
+}
 
+func giveAllClients(channel chan<- string, clients map[string]*client) {
+	if len(clients) > 1 {
+		channel <- "All clients:"
+		for _, cli := range clients {
+			channel <- cli.name
+		}
 	}
 }
 
 func handleConn(conn net.Conn) {
-	ch := make(chan string) // outgoing client messages
+	ch := make(chan string) // Necessary because me.channel = ch will do implicit conversion and line:65 will fail
+	me := &client{channel: ch, name: conn.RemoteAddr().String()}
 	go clientWriter(conn, ch)
 
-	who := conn.RemoteAddr().String()
-	ch <- "You are " + who
-	messages <- who + " has arrived"
-	entering <- ch
-	registeringAddress <- who
+	me.channel <- "You are " + me.name
+	messages <- me.name + " has arrived"
+	entering <- me
 
 	input := bufio.NewScanner(conn)
 	for input.Scan() {
-		messages <- who + ": " + input.Text()
+		messages <- me.name + ": " + input.Text()
 	}
 	// NOTE: ignoring potential errors from input.Err()
 
-	leaving <- ch
-	messages <- who + " has left"
-	unregisteringAddress <- who
+	leaving <- me
+	messages <- me.name + " has left"
 	conn.Close()
 }
 
