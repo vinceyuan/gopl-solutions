@@ -1,20 +1,24 @@
-package main
+// 4.4 Write a version of rotate that operates in a single pass.
+package rotate
 
 import "fmt"
 
-func main() {
-	//!+slice
-	s := []int{0, 1, 2, 3, 4, 5}
-	// Rotate s left by two positions.
-	rotate(s, 2)
-	fmt.Println(s) // "[2 3 4 5 0 1]"
-	//!-slice
+func rotateLeft(a []int, numRot int) []int {
+	lenA := len(a)
+	if numRot <= 0 || numRot >= lenA {
+		return a
+	}
+	temp := make([]int, lenA)
+	for i, j := 0, numRot; i < lenA; i, j = i+1, j+1 {
+		if j== len(a) {
+			j = 0
+		}
+		temp[i] = a[j]
+	}
+	return temp
 }
 
-func rotate(s []int, n int) {
-	length := len(s)
-	tmp := make([]int, n)
-	copy(tmp, s[:n])
-	copy(s, s[n:])
-	copy(s[length-n:], tmp)
+func main() {
+	s := []int{1, 2, 4, 5}
+	fmt.Println(rotateLeft(s,1))
 }
