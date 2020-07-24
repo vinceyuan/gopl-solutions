@@ -16,17 +16,17 @@ func main() {
 func comma(s string) string {
 	// Set the buffer with it 0 value
 	var buff bytes.Buffer
-	// Use this remainder for get the number of digits behind
+	// Number of digits before needing a comma
 	remainder := len(s) % 3
 
 	for i, v := range s {
-		// Print just the value if isn't a multiple of 3 after the reminder
+		// Write just the value if isn't a multiple of 3 after the reminder
 		if i < remainder || !((i-remainder)%3 == 0 && i != 0) {
 			_, _ = fmt.Fprintf(&buff, "%c", v)
 			continue
 		}
 
-		// Write a comma is it, then just print the rune
+		// Write a comma each 3 digits, then just write the rune
 		buff.WriteByte(',')
 		_, _ = fmt.Fprintf(&buff, "%c", v)
 	}
