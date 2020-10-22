@@ -66,7 +66,11 @@ func startElement(n *html.Node) {
 	} else if n.Type == html.TextNode {
 		trimmed := strings.TrimSpace(n.Data)
 		if trimmed != "" {
-			fmt.Printf("%*s%s\n", depth*2, "", trimmed)
+			// for correct indentation of multiple lines, print each line separately
+			lines := strings.Split(trimmed, "\n")
+			for _, l := range lines {
+				fmt.Printf("%*s%s\n", depth*2, "", trimmed)
+			}
 		}
 	} else if n.Type == html.CommentNode {
 		fmt.Printf("%*s<!--%s-->\n", depth*2, "", n.Data)
